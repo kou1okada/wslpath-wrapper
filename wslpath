@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# wslpath wrapper for DrvFs
+# Copyright (c) 2020 Koichi OKADA. All rights reserved.
+# This script is distributed under the MIT license.
+
+function getdrvfsmp () #
+# Get drvfs mount point
+# 
+# Return:
+#   "<device>\t<mountpoint>\n"...
+{
+  mount | grep drvfs | sed -E 's/^(.*) on (.*) type drvfs \(.*\).*/\1\t\2/g'
+}
+
+function escapebs () # <str>
+# escape backslash
+{
+  sed -E 's/\\/\\\\/g' <<<"$1"
+}
+
+function mode_u () # <path>
+# option -u mode
+{
+  local path="$(sed -E 's:/:\\:g' <<<"$1")"
+  getdrvfsmp \
+  | gawk -vFS=$'\t' -vpath="$(escapebs "$path")" '
+    function drvupper(s){
+      if (match(s, "[a-z]:")) s = toupper(substr(s, 1, 1)) substr(s, 2);
+      return s;
+    }
+    BEGIN {
+      gsub("/"   , "\\", path); gsub("/$"   , "", path); path = drvupper(path);
+    }
+    {
+      gsub("/"   , "\\", $1  ); gsub("\\\\$", "", $1  ); $1   = drvupper($1  );
+      gsub("\\\\", "/" , $2  ); gsub("/$"   , "", $2  );
+      if (substr(path, 1, length($1)) == $1) {
+        print $2 gensub("\\\\", "/", "g", substr(path, 1+length($1)))
+      }
+    }
+  '
+}
+
+function mode_w () # <path>
+# option -w mode
+{
+  local path="$(sed -E 's:\\:/:g' <<<"$1")"
+  getdrvfsmp \
+  | gawk -vFS=$'\t' -vpath="$(escapebs "$path")" '
+    function drvupper(s){
+      if (match(s, "[a-z]:")) s = toupper(substr(s, 1, 1)) substr(s, 2);
+      return s;
+    }
+    BEGIN {
+      gsub("\\\\", "/" , path); gsub("/$"   , "", path); path = drvupper(path);
+    }
+    {
+      gsub("/"   , "\\", $1  ); gsub("\\\\$", "", $1  ); $1   = drvupper($1  );
+      gsub("\\\\", "/" , $2  ); gsub("/$"   , "", $2  );
+      if (substr(path, 1, length($2)) == $2) {
+        print $1 gensub("/", "\\", "g", substr(path, 1+length($2)))
+      }
+    }
+  '
+}
+
+function mode_m () # <path>
+# option -m mode
+{
+  optw | sed -E 's:\\:/:g'
+}
+
+
+
+ARGS0=( "$@" )
+ARGS=()
+OPT_A=()
+OPT_UWM=()
+while (( 0 < $# )); do
+  case "$1" in
+  -a) OPT_A+=( "$1" ); shift;;
+  -u|-w|-m) OPT_UWM+=( "${1:1}" ); shift;;
+  *) ARGS+=( "$1" ); shift ;;
+  esac
+done
+
+if (( 1 < ${#OPT_UWM} || 1 < ${#ARGS[@]} )); then
+  /sbin/wslpath "${ARGS0[@]}"
+  exit 1
+fi
+
+if [ -n "$OPT_A" ]; then
+  ARGS=( "$(readlink -m "$ARGS")")
+  echo $ARGS
+fi
+
+path="$( "mode_${OPT_UWM:-u}" "$ARGS" )"
+
+if [ -n "$path" ]; then
+  echo "$path"
+else
+  # fallback to original wslpath
+  /bin/wslpath "${ARGS0[@]}"
+fi
