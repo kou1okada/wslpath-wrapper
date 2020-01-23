@@ -12,30 +12,24 @@ function getdrvfsmp () #
   mount | grep drvfs | sed -E 's/^(.*) on (.*) type drvfs \(.*\).*/\1\t\2/g'
 }
 
-function escapebs () # <str>
-# escape backslash
-{
-  sed -E 's/\\/\\\\/g' <<<"$1"
-}
-
 function mode_u () # <path>
 # option -u mode
 {
   local path="$(sed -E 's:/:\\:g' <<<"$1")"
   getdrvfsmp \
-  | gawk -vFS=$'\t' -vpath="$(escapebs "$path")" '
+  | gawk -vFS=$'\t' -vpath="${path//\\/\\\\}" '
     function drvupper(s){
       if (match(s, "[a-z]:")) s = toupper(substr(s, 1, 1)) substr(s, 2);
       return s;
     }
     BEGIN {
-      gsub("/"   , "\\", path); gsub("/$"   , "", path); path = drvupper(path);
+      gsub(/\//, "\\", path); gsub(/\/$/, "", path); path = drvupper(path);
     }
     {
-      gsub("/"   , "\\", $1  ); gsub("\\\\$", "", $1  ); $1   = drvupper($1  );
-      gsub("\\\\", "/" , $2  ); gsub("/$"   , "", $2  );
+      gsub(/\//, "\\", $1  ); gsub(/\\$/, "", $1  ); $1   = drvupper($1  );
+      gsub(/\\/, "/" , $2  ); gsub(/\/$/, "", $2  );
       if (substr(path, 1, length($1)) == $1) {
-        print $2 gensub("\\\\", "/", "g", substr(path, 1+length($1)))
+        print $2 gensub(/\\/, "/", "g", substr(path, 1+length($1)))
       }
     }
   '
@@ -46,19 +40,19 @@ function mode_w () # <path>
 {
   local path="$(sed -E 's:\\:/:g' <<<"$1")"
   getdrvfsmp \
-  | gawk -vFS=$'\t' -vpath="$(escapebs "$path")" '
+  | gawk -vFS=$'\t' -vpath="${path//\\/\\\\}" '
     function drvupper(s){
       if (match(s, "[a-z]:")) s = toupper(substr(s, 1, 1)) substr(s, 2);
       return s;
     }
     BEGIN {
-      gsub("\\\\", "/" , path); gsub("/$"   , "", path); path = drvupper(path);
+      gsub(/\\/, "/" , path); gsub(/\/$/, "", path); path = drvupper(path);
     }
     {
-      gsub("/"   , "\\", $1  ); gsub("\\\\$", "", $1  ); $1   = drvupper($1  );
-      gsub("\\\\", "/" , $2  ); gsub("/$"   , "", $2  );
+      gsub(/\//, "\\", $1  ); gsub(/\\$/, "", $1  ); $1   = drvupper($1  );
+      gsub(/\\/, "/" , $2  ); gsub(/\/$/, "", $2  );
       if (substr(path, 1, length($2)) == $2) {
-        print $1 gensub("/", "\\", "g", substr(path, 1+length($2)))
+        print $1 gensub(/\//, "\\", "g", substr(path, 1+length($2)))
       }
     }
   '
