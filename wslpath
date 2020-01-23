@@ -9,7 +9,7 @@ function getdrvfsmp () #
 # Return:
 #   "<device>\t<mountpoint>\n"...
 {
-  mount | grep drvfs | sed -E 's/^(.*) on (.*) type drvfs \(.*\).*/\1\t\2/g'
+  mount | grep drvfs | sed -E 's/^(.*) on (\/.*) type drvfs \(.*\).*/\1\t\2/g'
 }
 
 function mode_u () # <path>
