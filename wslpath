@@ -79,7 +79,7 @@ while (( 0 < $# )); do
 done
 
 if (( 1 < ${#OPT_UWM} || 1 < ${#ARGS[@]} )); then
-  /sbin/wslpath "${ARGS0[@]}"
+  /bin/wslpath "${ARGS0[@]}"
   exit 1
 fi
 
